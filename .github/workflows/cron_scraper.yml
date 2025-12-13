@@ -1,34 +1,46 @@
-name: Tarea Diaria de Scripts v.2
+name: Tarea Diaria de Scripts
 
-# Define cuándo se ejecutará el workflow
 on:
-  # Disparador por horario (cada día a las 9 AM UTC)
   schedule:
     - cron: '0 9 * * *' 
-  # Disparador manual (útil para pruebas inmediatas)
   workflow_dispatch: 
 
 jobs:
   ejecutar_script:
-    # El runner (VM) que GitHub te presta
     runs-on: ubuntu-latest 
+    
+    # Damos permiso explícito al token para escribir en el repo
+    permissions:
+      contents: write
 
     steps:
-    - name: 1. Descargar el código
-      # Acción estándar para obtener el contenido del repositorio
+    - name: 1. Checkout del código
       uses: actions/checkout@v4 
     
-    - name: 2. Configurar Python 3.10
-      # Configura el ambiente de Python
+    - name: 2. Configurar Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10' 
 
     - name: 3. Instalar dependencias
       run: |
-        # Reemplaza 'yfinance pandas' con las librerías que uses en tu script
         pip install yfinance pandas
         
-    - name: 4. Ejecutar Script
+    - name: 4. Ejecutar Script principal
+      # Esto crea el archivo 'ejecuciones_log.txt' en la VM
       run: python tu_script.py
 
+    - name: 5. Guardar cambios (Git Scraping)
+      run: |
+        # Configuramos el "bot" que firmará el commit
+        git config user.name "Automated Action"
+        git config user.email "actions@users.noreply.github.com"
+        
+        # Agregamos el archivo generado (o todos los cambios)
+        git add ejecuciones_log.txt
+        
+        # Hacemos commit si hay cambios (el '|| exit 0' evita error si no hubo cambios)
+        git commit -m "Auto: Actualización de log diario" || exit 0
+        
+        # Enviamos los cambios de vuelta a tu repo
+        git push
