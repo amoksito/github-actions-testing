@@ -1,0 +1,33 @@
+name: Tarea Diaria de Scripts
+
+# Define cuándo se ejecutará el workflow
+on:
+  # Disparador por horario (cada día a las 9 AM UTC)
+  schedule:
+    - cron: '0 9 * * *' 
+  # Disparador manual (útil para pruebas inmediatas)
+  workflow_dispatch: 
+
+jobs:
+  ejecutar_script:
+    # El runner (VM) que GitHub te presta
+    runs-on: ubuntu-latest 
+
+    steps:
+    - name: 1. Descargar el código
+      # Acción estándar para obtener el contenido del repositorio
+      uses: actions/checkout@v4 
+    
+    - name: 2. Configurar Python 3.10
+      # Configura el ambiente de Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10' 
+
+    - name: 3. Instalar dependencias
+      run: |
+        # Reemplaza 'yfinance pandas' con las librerías que uses en tu script
+        pip install yfinance pandas
+        
+    - name: 4. Ejecutar Script
+      run: python tu_script.py
