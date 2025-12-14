@@ -9,7 +9,6 @@ jobs:
   ejecutar_script:
     runs-on: ubuntu-latest 
     
-    # Damos permiso explícito al token para escribir en el repo
     permissions:
       contents: write
 
@@ -18,7 +17,7 @@ jobs:
       uses: actions/checkout@v4 
     
     - name: 2. Configurar Python
-      uses: actions/setup-python@v4
+      uses: actions:setup-python@v4
       with:
         python-version: '3.10' 
 
@@ -30,18 +29,33 @@ jobs:
       # Esto crea el archivo 'ejecuciones_log.txt' en la VM
       run: python tu_script.py
 
-    - name: 5. Guardar cambios (Git Scraping)
+    # NUEVO PASO: Enviar el Log a Telegram
+    - name: 5. Enviar Log a Telegram
+      # Solo enviar si el script (paso 4) fue exitoso
+      if: success()
       run: |
-        # Configuramos el "bot" que firmará el commit
+        # 1. Leer el contenido del log
+        LOG_CONTENT=$(cat ejecuciones_log.txt)
+        
+        # 2. Crear el mensaje final. Usamos 'MarkdownV2' para el formato.
+        # Envolviendo el log en tres comillas inversas (```) lo formatea como código
+        MENSAJE="*✅ Reporte de Script Diario*\n\n\`\`\`\n$LOG_CONTENT\n\`\`\`"
+        
+        # 3. Enviar la notificación vía Telegram API (usando curl)
+        # --data-urlencode es clave para manejar espacios y caracteres especiales en el log
+        curl -s -X POST "[https://api.telegram.org/bot$](https://api.telegram.org/bot$){{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+          -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+          --data-urlencode "text=$MENSAJE" \
+          -d "parse_mode=MarkdownV2"
+
+    - name: 6. Guardar cambios (Git Scraping)
+      run: |
         git config user.name "Automated Action"
         git config user.email "actions@users.noreply.github.com"
         
-        # Agregamos el archivo generado (o todos los cambios)
         git add ejecuciones_log.txt
         
-        # Hacemos commit si hay cambios (el '|| exit 0' evita error si no hubo cambios)
-        git commit -m "Auto: Actualización de log diario" || exit 0
+        # Si el log se envió correctamente, hacemos commit
+        git commit -m "Auto: Actualización de log diario y Telegram enviado" || exit 0
         
-        # Enviamos los cambios de vuelta a tu repo
         git push
-
