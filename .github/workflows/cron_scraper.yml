@@ -33,25 +33,27 @@ jobs:
       run: ls -lha  
 
     # NUEVO PASO: Enviar el Log a Telegram
+    # El paso 6 (antes 5)
     - name: 6. Enviar Log a Telegram
-      # Solo enviar si el script (paso 4) fue exitoso
       if: success()
       run: |
-        # 1. Leer el contenido del log
-        LOG_CONTENT=$(cat ejecuciones_log.txt)
+        # 1. Leer el contenido del log usando 'mapfile' para evitar problemas de multilínea
+        # Leemos el archivo en la variable LOG_CONTENT
+        mapfile -t LOG_CONTENT < ejecuciones_log.txt
         
-        # 2. Crear el mensaje final. Usamos 'MarkdownV2' para el formato.
-        # Envolviendo el log en tres comillas inversas (```) lo formatea como código
-        MENSAJE="*✅ Reporte de Script Diario*\n\n\`\`\`\n$LOG_CONTENT\n\`\`\`"
+        # 2. Unir las líneas con saltos de línea y escapar caracteres especiales
+        # Esto es crucial para Telegram, que odia los saltos de línea y los caracteres especiales
+        MENSAJE=$(printf "%s\n" "${LOG_CONTENT[@]}" | sed 's/[^a-zA-Z0-9.,áéíóúÁÉÍÓÚñÑ ]/\\&/g' | sed ':a;N;$!ba;s/\n/%0A/g')
         
-        # 3. Enviar la notificación vía Telegram API (usando curl)
-        # --data-urlencode es clave para manejar espacios y caracteres especiales en el log
-        curl -s -X POST "[https://api.telegram.org/bot$](https://api.telegram.org/bot$){{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+        # 3. Preparar el mensaje final (usaremos URL-encoding directo)
+        FINAL_MENSAJE="[✅ Reporte Diario]%0A%0A${MENSAJE}"
+        
+        # 4. Enviar la notificación vía Telegram API (usando curl)
+        curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
           -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-          --data-urlencode "text=$MENSAJE" \
-          -d "parse_mode=MarkdownV2"
+          -d "text=${FINAL_MENSAJE}"
 
-    - name: 6. Guardar cambios (Git Scraping)
+    - name: 7. Guardar cambios (Git Scraping)
       run: |
         git config user.name "Automated Action"
         git config user.email "actions@users.noreply.github.com"
