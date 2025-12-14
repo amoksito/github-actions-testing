@@ -29,8 +29,11 @@ jobs:
       # Esto crea el archivo 'ejecuciones_log.txt' en la VM
       run: python tu_script.py
 
+    - name: 5. Debugging - Listar Archivos
+      run: ls -lha  
+
     # NUEVO PASO: Enviar el Log a Telegram
-    - name: 5. Enviar Log a Telegram
+    - name: 6. Enviar Log a Telegram
       # Solo enviar si el script (paso 4) fue exitoso
       if: success()
       run: |
