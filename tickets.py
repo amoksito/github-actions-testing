@@ -10,7 +10,7 @@ import io
 
 # --- Configuración ---
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
-CHAT_ID = os.environ.get("CHAT_ID")
+CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 
 def enviar_mensaje(texto):
