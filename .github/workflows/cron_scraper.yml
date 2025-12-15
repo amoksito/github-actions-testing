@@ -2,7 +2,7 @@ name: Tarea Diaria de Scripts
 
 on:
   schedule:
-    - cron: '0 9 * * *' 
+    - cron: '0 11 * * *' 
   workflow_dispatch: 
 
 jobs:
@@ -23,11 +23,12 @@ jobs:
 
     - name: 3. Instalar dependencias
       run: |
-        pip install yfinance pandas
+        python -m pip install --upgrade pip
+        pip install pandas yfinance mplfinance requests
         
     - name: 4. Ejecutar Script principal
       # Esto crea el archivo 'ejecuciones_log.txt' en la VM
-      run: python tu_script.py
+      run: python tickets.py
 
     - name: 5. Debugging - Listar Archivos
       run: ls -lha  
