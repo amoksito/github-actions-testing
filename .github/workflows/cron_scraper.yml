@@ -1,67 +1,33 @@
-name: Tarea Diaria de Scripts
+name: Ejecutar Bot Financiero
 
 on:
   schedule:
-    - cron: '0 11 * * *' 
-  workflow_dispatch: 
+    # Ejecutar de lunes a viernes a las 21:00 UTC (ajusta la hora según necesites)
+    - cron: '0 21 * * 1-5'
+  workflow_dispatch: # Para poder darle al botón "Run workflow" manual
 
 jobs:
-  ejecutar_script:
-    runs-on: ubuntu-latest 
-    
-    permissions:
-      contents: write
+  build:
+    runs-on: ubuntu-latest
 
     steps:
-    - name: 1. Checkout del código
-      uses: actions/checkout@v4 
-    
-    - name: 2. Configurar Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10' 
+      - name: Chequear el repositorio
+        uses: actions/checkout@v3
 
-    - name: 3. Instalar dependencias
-      run: |
-        python -m pip install --upgrade pip
-        pip install pandas yfinance mplfinance requests
-        
-    - name: 4. Ejecutar Script principal
-      # Esto crea el archivo 'ejecuciones_log.txt' en la VM
-      run: python tickets.py
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
 
-    - name: 5. Debugging - Listar Archivos
-      run: ls -lha  
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          # IMPORTANTE: Aquí instalamos mplfinance
+          pip install pandas yfinance mplfinance requests
 
-    # NUEVO PASO: Enviar el Log a Telegram
-    # El paso 6 (antes 5)
-    - name: 6. Enviar Log a Telegram
-      if: success()
-      run: |
-        # 1. Leer el contenido del log usando 'mapfile' para evitar problemas de multilínea
-        # Leemos el archivo en la variable LOG_CONTENT
-        mapfile -t LOG_CONTENT < ejecuciones_log.txt
-        
-        # 2. Unir las líneas con saltos de línea y escapar caracteres especiales
-        # Esto es crucial para Telegram, que odia los saltos de línea y los caracteres especiales
-        MENSAJE=$(printf "%s\n" "${LOG_CONTENT[@]}" | sed 's/[^a-zA-Z0-9.,áéíóúÁÉÍÓÚñÑ ]/\\&/g' | sed ':a;N;$!ba;s/\n/%0A/g')
-        
-        # 3. Preparar el mensaje final (usaremos URL-encoding directo)
-        FINAL_MENSAJE="[✅ Reporte Diario]%0A%0A${MENSAJE}"
-        
-        # 4. Enviar la notificación vía Telegram API (usando curl)
-        curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
-          -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-          -d "text=${FINAL_MENSAJE}"
-
-    - name: 7. Guardar cambios (Git Scraping)
-      run: |
-        git config user.name "Automated Action"
-        git config user.email "actions@users.noreply.github.com"
-        
-        git add ejecuciones_log.txt
-        
-        # Si el log se envió correctamente, hacemos commit
-        git commit -m "Auto: Actualización de log diario y Telegram enviado" || exit 0
-        
-        git push
+      - name: Ejecutar script de tickets
+        env: 
+          # AQUÍ ESTÁ LA CLAVE: Le pasamos los secretos al entorno del script
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: python tickets.py
