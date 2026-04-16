@@ -5,7 +5,7 @@ import os
 LOG_FILE = "ejecuciones_log.txt"
 
 # Obtenemos la hora actual en UTC
-current_time = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+current_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 # El mensaje que vamos a loguear
 log_message = f"[{current_time}] Script ejecutado exitosamente por GitHub Actions.\n"
