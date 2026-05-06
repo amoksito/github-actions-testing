@@ -167,7 +167,8 @@ def main():
         buffer, resumen = procesar_activo(activo["ticker"], activo["nombre"])
 
         if buffer:
-            enviar_grafico(buffer, f"📊 **{activo['nombre']}**")
+            enviar_mensaje(f"📊 **{activo['nombre']}**")
+            enviar_grafico(buffer)
             buffer.close()
 
         lineas_resumen.append(resumen)
