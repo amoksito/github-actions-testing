@@ -37,7 +37,8 @@ def enviar_grafico(buffer, caption):
         return
     url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
     buffer.seek(0)
-    files = {"photo": buffer}
+    # Agregamos un nombre de archivo para mayor compatibilidad con la API
+    files = {"photo": ("chart.png", buffer, "image/png")}
     data = {"chat_id": CHAT_ID, "caption": caption, "parse_mode": "Markdown"}
     requests.post(url, files=files, data=data)
 
@@ -79,65 +80,49 @@ def analizar_volumen(df, period):
         return f"Vol: {vol_hoy:,.0f} ({cambio_pct:.1f}%)"
 
 
-# --- Función para Generar el Gráfico y Enviar (Sin Texto) ---
+# --- Función para Procesar Cada Activo (Gráfico + Análisis) ---
 
 
-def generar_grafico_pro(ticker, nombre):
-    """Descarga datos, genera el gráfico de velas con MAs y lo envía a Telegram."""
+def procesar_activo(ticker, nombre):
+    """Descarga datos una sola vez, genera gráfico y devuelve la línea de resumen."""
     try:
-        # Descargar datos (3 meses para ver detalle de velas)
+        # Descargar datos (3 meses)
         df = yf.download(ticker, period="3mo", interval="1d", progress=False)
 
         if df.empty:
-            return
+            return None, f"❌ **{nombre}** ({ticker}): No se obtuvieron datos."
 
-        # Limpieza de datos
-        if hasattr(df.columns, "nlevels") and df.columns.nlevels > 1:
-            df.columns = df.columns.droplevel(1)
+        # Limpieza de columnas robusta para yfinance 0.2.x
+        if isinstance(df.columns, pd.MultiIndex):
+            if "Close" in df.columns.get_level_values(0):
+                df.columns = df.columns.get_level_values(0)
+            else:
+                df.columns = df.columns.get_level_values(-1)
 
-        # Configurar el estilo y guardar en buffer de memoria
+        # Eliminar filas con NaN en el cierre (común en la última fila si el mercado está abierto)
+        if pd.isna(df["Close"].iloc[-1]):
+            df = df.iloc[:-1]
+
+        if len(df) < max(RSI_PERIOD, VOL_PERIOD) + 2:
+            return None, f"❌ **{nombre}** ({ticker}): Datos insuficientes."
+
+        # 1. Generar Gráfico en Buffer
         buf = io.BytesIO()
-
         mpf.plot(
             df,
             type="candle",
-            mav=(20, 50),  # Medias móviles de 20 y 50 días
+            mav=(20, 50),
             volume=True,
             title=f"\n{nombre} ({ticker}) - Últimos 3 meses",
             style="yahoo",
             savefig=dict(fname=buf, dpi=100, pad_inches=0.25),
         )
+        buf.seek(0)
 
-        # Enviar a Telegram solo el gráfico
-        enviar_grafico(buf, f"📊 **{nombre}**")
-        print(f"Gráfico enviado: {ticker}")
-        buf.close()
-
-    except Exception as e:
-        print(f"Error en {ticker}: {e}")
-        enviar_mensaje(f"⚠️ Error al generar gráfico para {ticker}: {str(e)}")
-
-
-# --- Función para Generar el Resumen de Texto ---
-
-
-def generar_resumen_tecnico_texto(ticker, nombre):
-    """Descarga datos, hace el análisis y devuelve una línea de texto formateada."""
-    try:
-        # Descargamos solo lo necesario, sin generar gráfico
-        df = yf.download(ticker, period="3mo", interval="1d", progress=False)
-
-        if df.empty or len(df) < max(RSI_PERIOD, VOL_PERIOD) + 2:
-            return f"❌ **{nombre}** ({ticker}): Datos insuficientes."
-
-        if hasattr(df.columns, "nlevels") and df.columns.nlevels > 1:
-            df.columns = df.columns.droplevel(1)
-
-        # Análisis
+        # 2. Calcular Análisis Técnico
         rsi_val = calcular_rsi(df, RSI_PERIOD)
         vol_texto = analizar_volumen(df, VOL_PERIOD)
 
-        # Interpretación del RSI
         if rsi_val > 70:
             rsi_estado = f"RSI: *{rsi_val:.1f}* (Sobrecompra 🚨)"
         elif rsi_val < 30:
@@ -146,14 +131,13 @@ def generar_resumen_tecnico_texto(ticker, nombre):
             rsi_estado = f"RSI: {rsi_val:.1f}"
 
         cierre = df["Close"].iloc[-1]
+        resumen = f"▪️ **{nombre}** ({ticker}): Cierre {cierre:.2f} | {rsi_estado} | {vol_texto}"
 
-        # Formato final de la línea
-        return f"▪️ **{nombre}** ({ticker}): Cierre {cierre:.2f} | {rsi_estado} | {vol_texto}"
+        return buf, resumen
 
     except Exception as e:
-        return (
-            f"❌ **{nombre}** ({ticker}): Error de conexión/cálculo ({str(e)[:20]}...)"
-        )
+        print(f"Error procesando {ticker}: {e}")
+        return None, f"❌ **{nombre}** ({ticker}): Error ({str(e)[:30]}...)"
 
 
 # --- Función Principal (Main) ---
@@ -176,22 +160,20 @@ def main():
         {"ticker": "SI=F", "nombre": "Plata Futuros"},
     ]
 
-    # --- 1. Generar y Enviar Gráficos ---
-    for activo in activos:
-        generar_grafico_pro(activo["ticker"], activo["nombre"])
-
-    # --- 2. Generar y Enviar el Resumen de Texto Final ---
-    print("Generando resumen técnico final...")
-    enviar_mensaje("⏳ **Resumen Técnico en curso...**")
-
     lineas_resumen = []
 
     for activo in activos:
-        linea = generar_resumen_tecnico_texto(activo["ticker"], activo["nombre"])
-        lineas_resumen.append(linea)
+        print(f"Procesando {activo['ticker']}...")
+        buffer, resumen = procesar_activo(activo["ticker"], activo["nombre"])
 
+        if buffer:
+            enviar_grafico(buffer, f"📊 **{activo['nombre']}**")
+            buffer.close()
+
+        lineas_resumen.append(resumen)
+
+    # Enviar el Resumen de Texto Final
     resumen_final = "\n".join(lineas_resumen)
-
     mensaje_final = (
         "📊 **RESUMEN TÉCNICO DIARIO**\n"
         "-------------------------------------\n"
@@ -200,7 +182,6 @@ def main():
     )
 
     enviar_mensaje(mensaje_final)
-
     enviar_mensaje("✅ Reporte finalizado.")
 
 

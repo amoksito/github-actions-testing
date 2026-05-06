@@ -22,8 +22,8 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          # IMPORTANTE: Aquí instalamos mplfinance
-          pip install pandas yfinance mplfinance requests
+          # Instalamos dependencias necesarias
+          pip install pandas yfinance mplfinance requests matplotlib
 
       - name: Ejecutar script de tickets
         env: 
