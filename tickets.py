@@ -168,7 +168,7 @@ def main():
 
         if buffer:
             enviar_mensaje(f"📊 **{activo['nombre']}**")
-            enviar_grafico(buffer)
+            enviar_grafico(buffer, activo["nombre"])
             buffer.close()
 
         lineas_resumen.append(resumen)
