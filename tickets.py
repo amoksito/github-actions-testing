@@ -25,10 +25,14 @@ def enviar_mensaje(texto):
         return
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": texto, "parse_mode": "Markdown"}
-    requests.post(url, json=payload)
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()
+    except Exception as e:
+        print(f"Error al enviar mensaje a Telegram: {e}")
 
 
-def enviar_grafico(buffer, caption):
+def enviar_grafico(buffer, caption=""):
     """Envía un gráfico (buffer) a Telegram."""
     if not TOKEN or not CHAT_ID:
         print(
@@ -36,11 +40,15 @@ def enviar_grafico(buffer, caption):
         )
         return
     url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
-    buffer.seek(0)
-    # Agregamos un nombre de archivo para mayor compatibilidad con la API
-    files = {"photo": ("chart.png", buffer, "image/png")}
-    data = {"chat_id": CHAT_ID, "caption": caption, "parse_mode": "Markdown"}
-    requests.post(url, files=files, data=data)
+    try:
+        buffer.seek(0)
+        # Agregamos un nombre de archivo para mayor compatibilidad con la API
+        files = {"photo": ("chart.png", buffer, "image/png")}
+        data = {"chat_id": CHAT_ID, "caption": caption, "parse_mode": "Markdown"}
+        response = requests.post(url, files=files, data=data)
+        response.raise_for_status()
+    except Exception as e:
+        print(f"Error al enviar gráfico a Telegram: {e}")
 
 
 # --- Funciones de Cálculo de Análisis Técnico ---
