@@ -74,7 +74,7 @@ def analizar_volumen(df, period):
     """Compara el volumen de hoy vs. el promedio reciente y devuelve un texto."""
     vol_hoy = df["Volume"].iloc[-1]
     # Promedio de las últimas 'period' sesiones, excluyendo la de hoy (iloc[-2])
-    vol_avg = df["Volume"].rolling(window=period).mean().iloc[-2]
+    vol_avg = df["Volume"].iloc[-(period + 1):-1].mean()
 
     if vol_avg == 0 or pd.isna(vol_avg):
         return f"Vol: {vol_hoy:,.0f} (N/A Avg)"
